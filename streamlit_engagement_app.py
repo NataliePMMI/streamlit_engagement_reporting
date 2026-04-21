@@ -6,6 +6,26 @@ from io import BytesIO
 import pandas as pd
 import streamlit as st
 
+# -----------------------------
+# Streamlit page setup + styling
+# -----------------------------
+st.set_page_config(
+    page_title="Monthly Engagement Reporting Processor",
+    layout="wide",
+)
+
+st.set_option("client.toolbarMode", "minimal")
+st.set_option("client.showSidebarNavigation", False)
+
+hide_streamlit_style = """
+<style>
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+header {visibility: hidden;}
+</style>
+"""
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
 BRANDS = ["PW", "HCP", "PFW", "OEM", "Mundo"]
 
 
@@ -86,9 +106,9 @@ def validate_required_columns(df, required_columns, file_label, brand):
 def parse_brand_files(brand, uploaded_files):
     """
     Correct file roles:
-    1) [Brand]_Engaged_YYYYMMDD      -> engaged file, contains Customer Id only
+    1) [Brand]_Engaged_YYYYMMDD -> engaged file, contains Customer Id only
     2) [Brand]_Email_Universe_YYYYMMDD -> email universe file, contains full email columns
-    3) MMDDYY_[Brand]_EmailUniverse  -> previous month report
+    3) MMDDYY_[Brand]_EmailUniverse -> previous month report
     """
     brand_upper = brand.upper()
 
@@ -313,7 +333,9 @@ def process_brand(brand, uploaded_files):
             lambda x: engaged_label if x in engaged_ids else "Unengaged"
         )
 
-        previous_lookup = dict(zip(previous_month_df["Customer Id"], previous_month_df["Engaged?"]))
+        previous_lookup = dict(
+            zip(previous_month_df["Customer Id"], previous_month_df["Engaged?"])
+        )
         output_df["Previous Mo Status"] = output_df["Customer Id"].map(previous_lookup)
         output_df["Previous Mo Status"] = output_df["Previous Mo Status"].fillna("#N/A")
 
@@ -369,16 +391,17 @@ def render_brand_examples(brand):
 
 
 def main():
-    st.set_page_config(page_title="Monthly Engagement Reporting Processor", layout="wide")
     st.title("Monthly Engagement Reporting Processor")
 
     st.info(
         "Upload exactly 3 files for each brand you want to process: "
-        "[Brand]_Engaged_YYYYMMDD, [Brand]_Email_Universe_YYYYMMDD, and MMDDYY_[Brand]_EmailUniverse. "
-        "Only brands with uploaded files will be processed."
+        "[Brand]_Engaged_YYYYMMDD, [Brand]_Email_Universe_YYYYMMDD, and "
+        "MMDDYY_[Brand]_EmailUniverse. Only brands with uploaded files will be processed."
     )
 
-    st.write("Brands with invalid files will be listed in `ERRORS.txt` while valid brands still process.")
+    st.write(
+        "Brands with invalid files will be listed in `ERRORS.txt` while valid brands still process."
+    )
 
     brand_uploads = {}
     col1, col2 = st.columns(2)
@@ -401,17 +424,22 @@ def main():
         errors = []
         success_count = 0
 
-        with zipfile.ZipFile(zip_buffer, mode="w", compression=zipfile.ZIP_DEFLATED) as zip_file:
+        with zipfile.ZipFile(
+            zip_buffer, mode="w", compression=zipfile.ZIP_DEFLATED
+        ) as zip_file:
             for brand in BRANDS:
                 uploaded_files = brand_uploads.get(brand, [])
                 non_empty_files = [
-                    f for f in uploaded_files if f is not None and getattr(f, "name", "").strip() != ""
+                    f for f in uploaded_files
+                    if f is not None and getattr(f, "name", "").strip() != ""
                 ]
 
                 if not non_empty_files:
                     continue
 
-                workbook_name, workbook_bytes, error = process_brand(brand, non_empty_files)
+                workbook_name, workbook_bytes, error = process_brand(
+                    brand, non_empty_files
+                )
 
                 if error:
                     errors.append(error)
@@ -431,6 +459,7 @@ def main():
 
         if success_count > 0:
             st.success(f"Processed {success_count} brand(s).")
+
         if errors:
             st.warning("Some brands could not be processed. See ERRORS.txt in the ZIP file.")
             for err in errors:
